@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- saved from url=(0023)http://localhost/diurr/ -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
     <title>DIU Result Viewer</title>
     <style>
         body {
@@ -174,31 +174,21 @@
                 font-size: 13px;
             }
         }
-
     </style>
 </head>
 <body>
 
 <div class="content-blur">
     <h2>Daffodil International University Result</h2>
-    <img src="./index_files/logo.png" alt="DIU Logo" style="display: block; margin: 10px auto; max-width: 100px; color: white;">
+    <img src="logo.png" alt="DIU Logo" style="display: block; margin: 10px auto; max-width: 100px; color: white;">
 
-    <form method="get" id="resultForm">
+    <form id="resultForm">
         Enter Student ID
-        <input type="text" name="student_id" placeholder="Student ID (e.g. 111-15-1111)" value="" required="">
-        
-        <select name="semester" required="">
+        <input type="text" id="student_id" placeholder="Student ID (e.g. 111-15-1111)" required>
+
+        <select id="semester" required>
             <option value="">Select Semester</option>
-                            <option value="Fall 2025">Fall 2025</option>
-                            <option value="Summer 2025">Summer 2025</option>
-                            <option value="Spring 2025" selected="">Spring 2025</option>
-                            <option value="Fall 2024">Fall 2024</option>
-                            <option value="Summer 2024">Summer 2024</option>
-                            <option value="Spring 2024">Spring 2024</option>
-                            <option value="Fall 2023">Fall 2023</option>
-                            <option value="Summer 2023">Summer 2023</option>
-                            <option value="Spring 2023">Spring 2023</option>
-                    </select>
+        </select>
         <button type="submit">Get Result</button>
     </form>
 
@@ -207,16 +197,103 @@
         <p style="color: red;">Loading...Please Wait.</p>
     </div>
 
-    </div>
+    <div id="resultSection"></div>
+</div>
 
 <footer>All Rights Reserved, Daffodil International University <br>Developed by MD. AL AMIN AKASH</footer>
 
 <script>
-    document.getElementById('resultForm').addEventListener('submit', function() {
+    const semesters = {
+        "Spring 2023": "231",
+        "Summer 2023": "232",
+        "Fall 2023": "233",
+        "Spring 2024": "241",
+        "Summer 2024": "242",
+        "Fall 2024": "243",
+        "Spring 2025": "251",
+        "Summer 2025": "252",
+        "Fall 2025": "253"
+    };
+
+    // Populate semester dropdown
+    const semesterSelect = document.getElementById('semester');
+    for (const [name, id] of Object.entries(semesters)) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        semesterSelect.appendChild(option);
+    }
+
+    // Handle form submission
+    document.getElementById('resultForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        const studentId = document.getElementById('student_id').value;
+        const semesterName = document.getElementById('semester').value;
+        const semesterId = semesters[semesterName] || '251';  // Default to Spring 2025
+        
         document.getElementById('loadingSpinner').classList.add('show');
+
+        // Fetch result from API
+        const url = `http://peoplepulse.diu.edu.bd:8189/result?grecaptcha=&semesterId=${semesterId}&studentId=${studentId}`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingSpinner').classList.remove('show');
+                
+                if (Array.isArray(data) && data.length > 0) {
+                    let resultHTML = `<h3>${studentId} - ${semesterName}</h3><table>
+                        <thead>
+                            <tr>
+                                <th>Course Code</th>
+                                <th>Course Title</th>
+                                <th>Credit</th>
+                                <th>Grade</th>
+                                <th>Point</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                    let totalCredits = 0;
+                    let totalPoints = 0;
+
+                    data.forEach(course => {
+                        const { customCourseId, courseTitle, totalCredit, gradeLetter, pointEquivalent } = course;
+                        const credit = totalCredit || 0;
+                        const point = pointEquivalent || 0;
+
+                        totalCredits += credit;
+                        totalPoints += (point * credit);
+
+                        resultHTML += `<tr>
+                            <td>${customCourseId || 'N/A'}</td>
+                            <td>${courseTitle || 'N/A'}</td>
+                            <td>${credit}</td>
+                            <td><strong>${gradeLetter || 'N/A'}</strong></td>
+                            <td>${point}</td>
+                        </tr>`;
+                    });
+
+                    const gpa = totalCredits > 0 ? totalPoints / totalCredits : 0;
+                    const cgpa = data[0].cgpa || 'N/A';
+
+                    resultHTML += `</tbody></table>
+                    <div class="summary">
+                        <p><strong>CGPA:</strong> ${cgpa}</p>
+                    </div>`;
+
+                    document.getElementById('resultSection').innerHTML = resultHTML;
+                } else {
+                    document.getElementById('resultSection').innerHTML = "<p class='error'>❌ No result found.</p>";
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingSpinner').classList.remove('show');
+                document.getElementById('resultSection').innerHTML = "<p class='error'>❌ Error fetching data.</p>";
+            });
     });
 </script>
 
-
-
-</body></html>
+</body>
+</html>
